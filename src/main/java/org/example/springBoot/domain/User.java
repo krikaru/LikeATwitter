@@ -1,22 +1,36 @@
 package org.example.springBoot.domain;
 
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
 import javax.persistence.*;
+import java.util.Collection;
 import java.util.Set;
 
 @Entity
-@Table(name = "usr")
-public class User {
+@Table(name = "usr") //this name will be name of table in database
+public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
     private String username;
     private String password;
     private boolean active;
+    private String email;
+    private String activationCode;
 
+    //говорит о том, что это элементы коллекции, указывая класс. Фетч - тип подгрузки:жадный.
     @ElementCollection(targetClass = Role.class, fetch = FetchType.EAGER)
+    //говорит о том что роли будут хранится в отдельной таблице. Эта таблица будет соединятся
+    //с текущей таблицей(т.е. с таблицей юзеров через колонку "user_id".
     @CollectionTable(name = "user_role", joinColumns = @JoinColumn(name = "user_id"))
+    //енам хотим хранить в виде строки
     @Enumerated(EnumType.STRING)
     private Set<Role> roles;
+
+    public boolean isAdmin(){
+        return roles.contains(Role.ADMIN);
+    }
 
     public Long getId() {
         return id;
@@ -30,8 +44,33 @@ public class User {
         return username;
     }
 
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return isActive();
+    }
+
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return getRoles();
     }
 
     public String getPassword() {
@@ -56,5 +95,21 @@ public class User {
 
     public void setRoles(Set<Role> roles) {
         this.roles = roles;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getActivationCode() {
+        return activationCode;
+    }
+
+    public void setActivationCode(String activationCode) {
+        this.activationCode = activationCode;
     }
 }
