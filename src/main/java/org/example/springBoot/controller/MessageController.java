@@ -3,6 +3,7 @@ package org.example.springBoot.controller;
 
 import org.example.springBoot.domain.Message;
 import org.example.springBoot.domain.User;
+import org.example.springBoot.domain.dto.MessageDto;
 import org.example.springBoot.repos.MessageRepo;
 import org.example.springBoot.service.MessageService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,11 +18,11 @@ import org.springframework.ui.Model;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.util.UriComponents;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.validation.Valid;
 import java.io.File;
@@ -94,8 +95,10 @@ public class MessageController {
     @GetMapping("/main")
     public String main(@RequestParam(required = false, defaultValue = "") String filter,
                        Model model,
-                       @PageableDefault(sort = {"id"}, direction = Sort.Direction.DESC) Pageable pageable) {
-        Page<Message> page = messageService.messageList(pageable, filter);
+                       @PageableDefault(sort = {"id"}, direction = Sort.Direction.DESC) Pageable pageable,
+                       @AuthenticationPrincipal User user) {
+
+        Page<MessageDto> page = messageService.messageList(pageable, filter, user);
 
 
         model.addAttribute("page", page);
@@ -113,7 +116,7 @@ public class MessageController {
         @RequestParam(required = false) Message message,
         @PageableDefault(sort = {"id"}, direction = Sort.Direction.DESC) Pageable pageable
     ){
-        Page<Message> page = messageService.messageListForUser(pageable, currentUser, author);
+        Page<MessageDto> page = messageService.messageListForUser(pageable, currentUser, author);
 
         model.addAttribute("userChannel", author);
         model.addAttribute("subscriptionsCount", author.getSubscription().size());
@@ -152,4 +155,27 @@ public class MessageController {
 
         return "redirect:/user-messages/" + user;
     }
+
+    @GetMapping("/messages/{message}/like")
+    public String like(@AuthenticationPrincipal User currentUser,
+                       @PathVariable Message message,
+                       RedirectAttributes redirectAttributes,   //перекидывание атрибутов через редирект
+                       @RequestHeader(required = false) String referer //откуда мы пришли
+    ) {
+        Set<User> likes = message.getLikes();
+
+        if (likes.contains(currentUser)){
+            likes.remove(currentUser);
+        }else {
+            likes.add(currentUser);
+        }
+        UriComponents components = UriComponentsBuilder.fromHttpUrl(referer).build(); //для извлечения параметров
+
+        components.getQueryParams()
+                .entrySet()
+                .forEach(pair -> redirectAttributes.addAttribute(pair.getKey(), pair.getValue()));
+
+        return "redirect:" + components.getPath();
+    }
+
 }
